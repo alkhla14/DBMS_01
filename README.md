@@ -273,7 +273,8 @@ EOF
 
 > **Screenshot 4:** Take a screenshot showing the output of the Task 1 SQLite query (the first and last few rows are sufficient), and insert it here.
 >
-> `[insert screenshot]`
+> `[insert screenshot]`<img width="2422" height="1028" alt="Image 22 04 26 at 23 22" src="https://github.com/user-attachments/assets/38334e30-dfee-4702-9d3a-6a6297a92ef1" />
+
 
 ### Questions for Task 1
 
@@ -282,14 +283,21 @@ Answer the following questions in your own words and add your answers directly b
 **Question 1.1:** Why is `grep -v "^timestamp"` needed in the shell solution even though the files are already filtered with `grep -h "T02"`? Could this step be omitted? Justify your answer.
 
 > *Your answer:*
+> grep -h "T02" matches every line that contains the substring T02, but the header line timestamp,sensor_id,location,value_celsius does not contain T02. However, when using cat without filtering correctly, headers might still appear if the command is changed later (e.g. using sensordata/*.csv instead of only T02 files).
+
+So grep -v "^timestamp" ensures that header rows are removed reliably. It could be omitted only if we are 100% sure that no header line can ever pass through the pipeline. In practice it is safer to keep it.
 
 **Question 1.2:** The shell solution uses `sensordata/T02_*.csv` as a file pattern, even though `grep -h "T02"` already filters for `T02`. Why is the file pattern still important — and what would happen if you used `sensordata/*.csv` instead?
 
-> *Your answer:*
+> *Your answer:*The pattern sensordata/T02_*.csv ensures we only read files belonging to sensor T02, which reduces unnecessary work and avoids scanning irrelevant files.
+
+If we used sensordata/*.csv, then we would read all 120 files. The grep filter would still extract only T02 lines, but the command would be slower and would also become more error-prone (for example, if another column contained the string T02, it could produce false matches). The pattern provides a structural filter before content filtering.
 
 **Question 1.3:** The SQL solution uses `ORDER BY timestamp` even though `timestamp` is stored as type `TEXT`. Why does chronological sorting still work correctly? Under what condition would it fail?
 
-> *Your answer:*
+> *Your answer:*Chronological sorting works because the timestamps are stored in ISO 8601 format (YYYY-MM-DDTHH:MM:SS). In this format, lexicographic order (string sorting) is the same as chronological order, because the most significant components (year, month, day, hour, minute, second) appear first.
+
+It would fail if the timestamp were stored in a format like DD-MM-YYYY or MM/DD/YYYY, because string sorting would no longer correspond to actual date order.
 
 ---
 
@@ -361,21 +369,30 @@ EOF
 
 > **Screenshot 5:** Take a screenshot showing the output of the Task 2 SQLite query and insert it here.
 >
-> `[insert screenshot]`
+> `[insert screenshot<img width="1456" height="176" alt="Image 22 04 26 at 23 24" src="https://github.com/user-attachments/assets/e01f9dd5-fba7-43e5-a9e9-e8abfef6bf92" />
 
 ### Questions for Task 2
 
 **Question 2.1:** The shell solution filters by date using `grep -rh "2026-03"`. What problem could arise if a sensor value happened to contain the string `2026-03` — for example as part of an error note? How does the SQL solution handle this problem?
 
-> *Your answer:*
+> *Your answer:*If a sensor value or any other field accidentally contained the substring 2026-03 (for example inside a text error message), then grep -rh "2026-03" would match that line even if the timestamp was not actually from March 2026. This is because grep does not understand column structure and only searches for raw substrings.
+
+SQL avoids this problem because it filters based on a specific column (timestamp). It does not accidentally match other fields because the condition explicitly applies only to the timestamp column.
 
 **Question 2.2:** The SQL solution uses `timestamp LIKE '2026-03-%'` for the date filter instead of a proper date function. Name one advantage and one disadvantage of this approach.
 
-> *Your answer:*
+> *Your answer:*Advantage:
+It is very simple and works without needing to parse timestamps into date objects. It is fast and readable as long as timestamps follow a consistent format.
+
+Disadvantage:
+It is not robust: if the timestamp format changes or contains time zone information, the LIKE filter may break. Also, it cannot easily handle real date arithmetic (e.g. “last 7 days”) or comparisons like timestamp >= ... AND timestamp < ....
 
 **Question 2.3:** The SQL solution returns results sorted by `ORDER BY value_celsius DESC`. The shell solution does not include this sorting. Extend the shell solution to also sort by temperature in descending order and write your command here.
 
-> *Your answer (extended shell command):*
+> *Your answer (extended shell command):*grep -rh "2026-03" sensordata/ \
+  | grep -v "^timestamp" \
+  | awk -F',' '$4 > 25.0 {print $1 "," $2 "," $4}' \
+  | sort -t',' -k3,3nr
 
 ---
 
@@ -462,21 +479,38 @@ EOF
 
 > **Screenshot 6:** Take a screenshot showing the output of the Task 3 SQLite query — the four rows with sensor statistics — and insert it here.
 >
-> `[insert screenshot]`
+> `[insert screenshot]`<img width="1696" height="574" alt="Image 22 04 26 at 23 27" src="https://github.com/user-attachments/assets/df18f379-436b-456c-89e1-f47224fc75e9" />
+
 
 ### Questions for Task 3
 
 **Question 3.1:** The `awk` solution initialises `min=9999` and `max=-9999`. What would happen if all temperature values in the dataset were greater than 9999? How could the initialisation be made more robust?
 
-> *Your answer:*
+> *Your answer:*If all values were greater than 9999, then min would never be updated and would remain 9999, producing an incorrect minimum.
+
+A more robust method is to initialise min and max using the first actual value seen in the dataset, instead of using artificial constants. For example:
+
+set min=value and max=value when the sensor is first encountered, or
+use the condition if (!(sensor in min)) min[sensor]=value.
 
 **Question 3.2:** The SQL solution uses `GROUP BY sensor_id`. What would the query return *without* this clause — i.e. if you ran `SELECT sensor_id, MIN(value_celsius), MAX(value_celsius), ROUND(AVG(value_celsius), 1) FROM readings`? Try it and describe the result.
 
-> *Your answer:*
+> *Your answer:*Without GROUP BY sensor_id, SQLite would treat the aggregate functions (MIN, MAX, AVG) as operating over the entire table and would return one single row containing the global min/max/avg across all sensors.
+
+The sensor_id column in the SELECT list would not be meaningful, because it is not aggregated. SQLite may still output a sensor_id from an arbitrary row, but it would not correspond to the aggregated values reliably. The result would be logically inconsistent.
+
+
 
 **Question 3.3:** Extend the SQL query with an additional column `COUNT(*) AS num_readings` that shows the total number of measurements for each sensor. Write the complete extended query here.
 
-> *Your answer (extended SQL query):*
+> *Your answer (extended SQL query):*SELECT sensor_id,
+       MIN(value_celsius) AS min_temp,
+       MAX(value_celsius) AS max_temp,
+       ROUND(AVG(value_celsius), 1) AS avg_temp,
+       COUNT(*) AS num_readings
+FROM   readings
+GROUP  BY sensor_id
+ORDER  BY sensor_id;
 
 ---
 
@@ -487,26 +521,35 @@ After completing all three tasks, answer the following questions:
 **Question A — Writing effort:**
 Which approach was easier to write correctly on the first try? Explain which properties of each language contributed to this.
 
-> *Your answer:*
+> *Your answer:*SQL was easier to write correctly because it directly expresses the intent (filtering, grouping, ordering) without manually handling files, headers, and parsing. The shell solution required combining multiple tools (grep, awk, sort) and remembering details like separators and column indices. SQL reduces cognitive load because it is declarative and built specifically for querying structured data.
 
 **Question B — Extensibility:**
 What would you need to change in the shell solution if a fifth sensor `T05` were added? What about the SQL solution? Which approach scales better — and why?
 
 > *Your answer:*
+In the shell solution, file patterns like T02_*.csv or hardcoded sensor lists would need to be updated to include T05, and scripts might need adjustments depending on how they iterate sensors.
+
+In the SQL solution, nothing needs to change: as long as the data is imported into the readings table, queries automatically include the new sensor.
+
+The SQL approach scales better because the database schema already models sensor_id as data, not as part of filenames or hardcoded logic.
 
 **Question C — Performance:**
 The shell solution reads files from disk on every invocation. A database can cache frequently queried data in memory. What does this mean for performance with 10 000 sensors and multi-year measurement data?
 
-> *Your answer:*
+> *Your answer:*The shell approach would become very slow because it must repeatedly scan thousands of files from disk for every query. Disk I/O becomes the bottleneck, and every query repeats the same expensive reading process.
+
+A database can store indexes, cache frequently accessed blocks in memory, and optimise query execution plans. With very large datasets, databases scale much better because they avoid full scans whenever possible and reuse internal structures.
 
 **Question D — Declarative vs. imperative:**
 SQL is called a *declarative* language: you describe *what* you want, not *how* to compute it. Bash/awk, by contrast, are *imperative*: you write step by step how the result is to be computed. In which of the three tasks did you feel this difference most clearly? Justify your choice.
 
-> *Your answer:*
+> *Your answer:*Task 3 (statistics per sensor) showed the difference most clearly. In SQL, grouping and aggregation is a single clean query (GROUP BY sensor_id). In the shell solution, it required manual bookkeeping using arrays in awk, handling sums, counts, min/max tracking, and formatting output. SQL expresses the goal directly, while awk requires implementing the algorithm step by step.
+
 
 > **Screenshot 7:** Take a final screenshot of your terminal showing the SQLite prompt with a query of your own invention on the `readings` table — one you came up with yourself that goes beyond the tasks above — and insert it here.
 >
 > `[insert screenshot]`
+<img width="1664" height="440" alt="Image 22 04 26 at 23 44" src="https://github.com/user-attachments/assets/b3d4239a-1ddc-4f21-8735-941595db1480" />
 
 ---
 
