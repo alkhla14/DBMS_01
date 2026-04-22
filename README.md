@@ -62,7 +62,9 @@ If any of the above commands return `command not found`, resolve the installatio
 
 > **Screenshot 1:** Take a screenshot of your terminal showing all four successful version checks and insert it here.
 >
-> `[insert screenshot]`
+> `[insert screenshot]`<img width="1646" height="528" alt="Image 22 04 26 at 22 43" src="https://github.com/user-attachments/assets/acd5138e-d88d-4f66-8109-5518593fee77" />
+
+
 
 ---
 
@@ -110,7 +112,9 @@ cat sensordata/T01_2026-03-01.csv
 
 > **Screenshot 2:** Take a screenshot showing the output of `ls sensordata/ | head -8` and the contents of one CSV file, and insert it here.
 >
-> `[insert screenshot]`
+> `[insert screenshot]`<img width="1670" height="466" alt="Image 22 04 26 at 22 52" src="https://github.com/user-attachments/assets/5fe09179-e678-4be7-b7e7-6ed12eea4eab" />
+
+
 
 ### What does the script do, line by line?
 
